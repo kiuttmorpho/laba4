@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import model.Component;
 
 public class WandShopController {
     private DatabaseManager dbManager;
@@ -69,6 +70,10 @@ public class WandShopController {
 
     public List<Supply> getAllSupplies() throws SQLException {
         return dbManager.getAllSupplies();
+    }
+    
+    public List<Component> getAllComponents() throws SQLException {
+        return dbManager.getAllComponents();
     }
     
     public List<String> getAvailableComponents(String componentType) throws SQLException {

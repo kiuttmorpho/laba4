@@ -287,6 +287,26 @@ public class DatabaseManager {
         statement.close();
         return supplies;
     }
+    
+    public List<Component> getAllComponents() throws SQLException {
+        if (connection == null) {
+            throw new SQLException("Подключение к базе данных не установлено");
+        }
+        List<Component> components = new ArrayList<>();
+        String sql = "SELECT * FROM Components";
+        Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery(sql);
+        while (rs.next()) {
+            components.add(new Component(
+                    rs.getString("component_type"),
+                    rs.getString("component_name"),
+                    rs.getInt("quantity")
+            ));
+        }
+        rs.close();
+        statement.close();
+        return components;
+    }
 
     public List<String> getAvailableComponents(String componentType) throws SQLException {
         if (connection == null) {
