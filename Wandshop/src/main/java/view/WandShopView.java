@@ -86,7 +86,6 @@ public class WandShopView {
         JComboBox<String> woodCombo = new JComboBox<>();
         JButton addButton = new JButton("Добавить");
 
-        // Заполняем выпадающие списки
         try {
             List<String> cores = controller.getAvailableComponents("сердцевина");
             List<String> woods = controller.getAvailableComponents("древесина");
@@ -96,7 +95,7 @@ public class WandShopView {
             for (String wood : woods) {
                 woodCombo.addItem(wood);
             }
-            // Активируем кнопку только если есть компоненты
+
             addButton.setEnabled(coreCombo.getItemCount() > 0 && woodCombo.getItemCount() > 0);
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(dialog, "Ошибка загрузки компонентов: " + ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
