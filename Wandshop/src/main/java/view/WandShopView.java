@@ -7,8 +7,7 @@ import model.Supply;
 import model.Wand;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.sql.SQLException;
 import java.util.List;
 
 public class WandShopView {
@@ -72,35 +71,60 @@ public class WandShopView {
     }
 
     private void showAddWandDialog() {
-        JDialog dialog = new JDialog(mainFrame, "Добавить палочку", true);
-        dialog.setLayout(new GridLayout(3, 2, 10, 10));
-        dialog.setSize(300, 150);
-        dialog.setLocationRelativeTo(mainFrame);
+    JDialog dialog = new JDialog(mainFrame, "Добавить палочку", true);
+    dialog.setLayout(new GridLayout(3, 2, 10, 10));
+    dialog.setSize(300, 150);
+    dialog.setLocationRelativeTo(mainFrame);
 
-        JLabel coreLabel = new JLabel("Сердцевина:");
-        JTextField coreField = new JTextField();
-        JLabel woodLabel = new JLabel("Древесина:");
-        JTextField woodField = new JTextField();
-        JButton addButton = new JButton("Добавить");
+    JLabel coreLabel = new JLabel("Сердцевина:");
+    JComboBox<String> coreCombo = new JComboBox<>();
+    JLabel woodLabel = new JLabel("Древесина:");
+    JComboBox<String> woodCombo = new JComboBox<>();
+    JButton addButton = new JButton("Добавить");
 
-        addButton.addActionListener(e -> {
-            try {
-                controller.addWand(coreField.getText(), woodField.getText());
-                JOptionPane.showMessageDialog(dialog, "Палочка добавлена!", "Успех", JOptionPane.INFORMATION_MESSAGE);
-                dialog.dispose();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
-            }
-        });
-
-        dialog.add(coreLabel);
-        dialog.add(coreField);
-        dialog.add(woodLabel);
-        dialog.add(woodField);
-        dialog.add(new JLabel());
-        dialog.add(addButton);
-        dialog.setVisible(true);
+    // Заполняем выпадающие списки
+    try {
+        List<String> cores = controller.getAvailableComponents("сердцевина");
+        List<String> woods = controller.getAvailableComponents("древесина");
+        for (String core : cores) {
+            coreCombo.addItem(core);
+        }
+        for (String wood : woods) {
+            woodCombo.addItem(wood);
+        }
+        // Активируем кнопку только если есть компоненты
+        addButton.setEnabled(coreCombo.getItemCount() > 0 && woodCombo.getItemCount() > 0);
+    } catch (SQLException ex) {
+        JOptionPane.showMessageDialog(dialog, "Ошибка загрузки компонентов: " + ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+        dialog.dispose();
+        return;
     }
+
+    addButton.addActionListener(e -> {
+        try {
+            String selectedCore = (String) coreCombo.getSelectedItem();
+            String selectedWood = (String) woodCombo.getSelectedItem();
+            if (selectedCore == null || selectedWood == null) {
+                throw new IllegalArgumentException("Выберите сердцевину и древесину!");
+            }
+            controller.addWand(selectedCore, selectedWood);
+            JOptionPane.showMessageDialog(dialog, "Палочка добавлена!", "Успех", JOptionPane.INFORMATION_MESSAGE);
+            dialog.dispose();
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(dialog, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+        }
+    });
+
+    dialog.add(coreLabel);
+    dialog.add(coreCombo);
+    dialog.add(woodLabel);
+    dialog.add(woodCombo);
+    dialog.add(new JLabel());
+    dialog.add(addButton);
+    dialog.setVisible(true);
+}
 
     private void showAddCustomerDialog() {
         JDialog dialog = new JDialog(mainFrame, "Добавить покупателя", true);
@@ -172,8 +196,8 @@ public class WandShopView {
         dialog.setSize(300, 200);
         dialog.setLocationRelativeTo(mainFrame);
 
-        JLabel typeLabel = new JLabel("Тип (сердцевина/древесина):");
-        JTextField typeField = new JTextField();
+        JLabel typeLabel = new JLabel("Тип:");
+        JComboBox<String> typeCombo = new JComboBox<>(new String[]{"сердцевина", "древесина"});
         JLabel nameLabel = new JLabel("Название:");
         JTextField nameField = new JTextField();
         JLabel quantityLabel = new JLabel("Количество:");
@@ -183,7 +207,8 @@ public class WandShopView {
         addButton.addActionListener(e -> {
             try {
                 int quantity = Integer.parseInt(quantityField.getText());
-                controller.addSupply(typeField.getText(), nameField.getText(), quantity);
+                String selectedType = (String) typeCombo.getSelectedItem();
+                controller.addSupply(selectedType, nameField.getText(), quantity);
                 JOptionPane.showMessageDialog(dialog, "Поставка добавлена!", "Успех", JOptionPane.INFORMATION_MESSAGE);
                 dialog.dispose();
             } catch (Exception ex) {
@@ -192,7 +217,7 @@ public class WandShopView {
         });
 
         dialog.add(typeLabel);
-        dialog.add(typeField);
+        dialog.add(typeCombo);
         dialog.add(nameLabel);
         dialog.add(nameField);
         dialog.add(quantityLabel);

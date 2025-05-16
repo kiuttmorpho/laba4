@@ -70,6 +70,10 @@ public class WandShopController {
     public List<Supply> getAllSupplies() throws SQLException {
         return dbManager.getAllSupplies();
     }
+    
+    public List<String> getAvailableComponents(String componentType) throws SQLException {
+        return dbManager.getAvailableComponents(componentType);
+    }
 
     public void clearAllData() throws SQLException {
         dbManager.clearAllData();

@@ -10,11 +10,11 @@ public class DatabaseManager {
 
     public DatabaseManager() {
         try {
-            connection = DriverManager.getConnection("jdbc:sqlite:wandshop.db" );
+            connection = DriverManager.getConnection("jdbc:sqlite:wandshop.db");
             createTables();
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Ошибка подключения к базе данных: " + e.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
-            connection = null; 
+            connection = null;
         }
     }
 
@@ -44,19 +44,81 @@ public class DatabaseManager {
                 "component_name TEXT NOT NULL, " +
                 "quantity INTEGER NOT NULL, " +
                 "supply_date TEXT NOT NULL)";
+        String createComponentsTable = "CREATE TABLE IF NOT EXISTS Components (" +
+                "component_type TEXT NOT NULL, " +
+                "component_name TEXT NOT NULL, " +
+                "quantity INTEGER NOT NULL, " +
+                "PRIMARY KEY (component_type, component_name))";
 
         Statement statement = connection.createStatement();
         statement.execute(createWandsTable);
         statement.execute(createCustomersTable);
         statement.execute(createPurchasesTable);
         statement.execute(createSuppliesTable);
+        statement.execute(createComponentsTable);
         statement.close();
+    }
+
+    private boolean checkAndUpdateStock(String core, String wood) throws SQLException {
+        if (connection == null) {
+            throw new SQLException("Подключение к базе данных не установлено");
+        }
+
+        // Проверяем наличие сердцевины
+        String checkCoreSql = "SELECT quantity FROM Components WHERE component_type = ? AND component_name = ?";
+        PreparedStatement coreStmt = connection.prepareStatement(checkCoreSql);
+        coreStmt.setString(1, "сердцевина");
+        coreStmt.setString(2, core);
+        ResultSet coreRs = coreStmt.executeQuery();
+        int coreQuantity = coreRs.next() ? coreRs.getInt("quantity") : 0;
+        coreRs.close();
+        coreStmt.close();
+
+        // Проверяем наличие древесины
+        String checkWoodSql = "SELECT quantity FROM Components WHERE component_type = ? AND component_name = ?";
+        PreparedStatement woodStmt = connection.prepareStatement(checkWoodSql);
+        woodStmt.setString(1, "древесина");
+        woodStmt.setString(2, wood);
+        ResultSet woodRs = woodStmt.executeQuery();
+        int woodQuantity = woodRs.next() ? woodRs.getInt("quantity") : 0;
+        woodRs.close();
+        woodStmt.close();
+
+        // Проверяем, достаточно ли ингредиентов
+        if (coreQuantity < 1 || woodQuantity < 1) {
+            return false; // Недостаточно ингредиентов
+        }
+
+        // Уменьшаем количество сердцевины
+        String updateCoreSql = "UPDATE Components SET quantity = quantity - 1 WHERE component_type = ? AND component_name = ?";
+        PreparedStatement updateCoreStmt = connection.prepareStatement(updateCoreSql);
+        updateCoreStmt.setString(1, "сердцевина");
+        updateCoreStmt.setString(2, core);
+        updateCoreStmt.executeUpdate();
+        updateCoreStmt.close();
+
+        // Уменьшаем количество древесины
+        String updateWoodSql = "UPDATE Components SET quantity = quantity - 1 WHERE component_type = ? AND component_name = ?";
+        PreparedStatement updateWoodStmt = connection.prepareStatement(updateWoodSql);
+        updateWoodStmt.setString(1, "древесина");
+        updateWoodStmt.setString(2, wood);
+        updateWoodStmt.executeUpdate();
+        updateWoodStmt.close();
+
+        return true;
     }
 
     public void addWand(String core, String wood) throws SQLException {
         if (connection == null) {
             throw new SQLException("Подключение к базе данных не установлено");
         }
+
+        // Проверяем и обновляем склад
+        if (!checkAndUpdateStock(core, wood)) {
+            throw new SQLException("Недостаточно ингредиентов на складе: требуется 1 единица " + core + " и 1 единица " + wood);
+        }
+
+        // Добавляем палочку
         String sql = "INSERT INTO Wands (core, wood, status) VALUES (?, ?, ?)";
         PreparedStatement ps = connection.prepareStatement(sql);
         ps.setString(1, core);
@@ -102,14 +164,44 @@ public class DatabaseManager {
         if (connection == null) {
             throw new SQLException("Подключение к базе данных не установлено");
         }
-        String sql = "INSERT INTO Supplies (component_type, component_name, quantity, supply_date) VALUES (?, ?, ?, ?)";
-        PreparedStatement ps = connection.prepareStatement(sql);
-        ps.setString(1, componentType);
-        ps.setString(2, componentName);
-        ps.setInt(3, quantity);
-        ps.setString(4, supplyDate);
-        ps.executeUpdate();
-        ps.close();
+        // Добавляем запись в Supplies
+        String supplySql = "INSERT INTO Supplies (component_type, component_name, quantity, supply_date) VALUES (?, ?, ?, ?)";
+        PreparedStatement supplyPs = connection.prepareStatement(supplySql);
+        supplyPs.setString(1, componentType);
+        supplyPs.setString(2, componentName);
+        supplyPs.setInt(3, quantity);
+        supplyPs.setString(4, supplyDate);
+        supplyPs.executeUpdate();
+        supplyPs.close();
+
+        // Обновляем или добавляем в Components
+        String checkComponentSql = "SELECT quantity FROM Components WHERE component_type = ? AND component_name = ?";
+        PreparedStatement checkPs = connection.prepareStatement(checkComponentSql);
+        checkPs.setString(1, componentType);
+        checkPs.setString(2, componentName);
+        ResultSet rs = checkPs.executeQuery();
+        if (rs.next()) {
+            // Компонент существует, обновляем количество
+            int currentQuantity = rs.getInt("quantity");
+            String updateSql = "UPDATE Components SET quantity = ? WHERE component_type = ? AND component_name = ?";
+            PreparedStatement updatePs = connection.prepareStatement(updateSql);
+            updatePs.setInt(1, currentQuantity + quantity);
+            updatePs.setString(2, componentType);
+            updatePs.setString(3, componentName);
+            updatePs.executeUpdate();
+            updatePs.close();
+        } else {
+            // Компонент новый, добавляем
+            String insertSql = "INSERT INTO Components (component_type, component_name, quantity) VALUES (?, ?, ?)";
+            PreparedStatement insertPs = connection.prepareStatement(insertSql);
+            insertPs.setString(1, componentType);
+            insertPs.setString(2, componentName);
+            insertPs.setInt(3, quantity);
+            insertPs.executeUpdate();
+            insertPs.close();
+        }
+        rs.close();
+        checkPs.close();
     }
 
     public List<Wand> getAllWands() throws SQLException {
@@ -196,6 +288,23 @@ public class DatabaseManager {
         return supplies;
     }
 
+    public List<String> getAvailableComponents(String componentType) throws SQLException {
+        if (connection == null) {
+            throw new SQLException("Подключение к базе данных не установлено");
+        }
+        List<String> components = new ArrayList<>();
+        String sql = "SELECT component_name FROM Components WHERE component_type = ? AND quantity > 0";
+        PreparedStatement ps = connection.prepareStatement(sql);
+        ps.setString(1, componentType);
+        ResultSet rs = ps.executeQuery();
+        while (rs.next()) {
+            components.add(rs.getString("component_name"));
+        }
+        rs.close();
+        ps.close();
+        return components;
+    }
+
     public void clearAllData() throws SQLException {
         if (connection == null) {
             throw new SQLException("Подключение к базе данных не установлено");
@@ -205,6 +314,7 @@ public class DatabaseManager {
         statement.execute("DELETE FROM Wands");
         statement.execute("DELETE FROM Customers");
         statement.execute("DELETE FROM Supplies");
+        statement.execute("DELETE FROM Components");
         statement.close();
     }
 
