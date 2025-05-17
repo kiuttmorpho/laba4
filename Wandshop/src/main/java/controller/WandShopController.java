@@ -4,6 +4,7 @@ import model.DatabaseManager;
 import model.Wand;
 import model.Customer;
 import model.Purchase;
+import model.Component;
 import model.Supply;
 import view.WandShopView;
 import java.sql.SQLException;
